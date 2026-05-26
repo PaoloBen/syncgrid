@@ -1,22 +1,31 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Image, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Image, Alert, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../ThemeContext';
+import { auth } from '../firebaseConfig';
 
-export default function ListView({ schedules, deleteSchedule, groups, activeGroupId, setActiveGroup }) {
+const ROUTINE_COLORS = ['#4285F4', '#0F9D58', '#F4B400', '#DB4437', '#673AB7', '#00ACC1', '#FF7043', '#8D6E63'];
+
+export default function ListView({ schedules, deleteSchedule, groups, activeGroupId, setActiveGroup, updateSchedule }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const activeGroup = groups.find(g => g.id === activeGroupId);
   const { theme } = useContext(ThemeContext);
 
-  const handleDelete = (item) => {
-    if (item.owner !== 'Me') {
-      Alert.alert("Permission Denied", `This schedule belongs to ${item.owner}. You cannot delete it.`);
+  // --- EDIT MODAL STATE ---
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [isScheduleModalVisible, setScheduleModalVisible] = useState(false);
+  const [editColor, setEditColor] = useState('');
+
+  const handleCardPress = (item) => {
+    if (item.ownerId !== auth.currentUser?.uid) {
+      const ownerName = item.ownerId === auth.currentUser?.uid ? "you" : item.owner || "another member";
+      Alert.alert("Permission Denied", `Only the owner of this routine can edit or delete it.\n\nOwner: ${ownerName}`);
       return;
     }
-    Alert.alert("Delete Schedule", `Remove "${item.title}"?`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => deleteSchedule(item.id) }
-    ]);
+
+    setSelectedSchedule(item);
+    setEditColor(item.color || '#4285F4');
+    setScheduleModalVisible(true);
   };
 
   return (
@@ -31,7 +40,7 @@ export default function ListView({ schedules, deleteSchedule, groups, activeGrou
         </TouchableOpacity>
       </View>
 
-      {/* dropdown nenu overlay */}
+      {/* dropdown menu overlay */}
       {showDropdown && (
         <View style={[styles.dropdownMenu, { backgroundColor: theme.card }]}>
           {groups.map(group => (
@@ -48,12 +57,72 @@ export default function ListView({ schedules, deleteSchedule, groups, activeGrou
         </View>
       )}
 
+      {/* EDIT ROUTINE MODAL */}
+      {selectedSchedule && (
+        <Modal visible={isScheduleModalVisible} animationType="fade" transparent={true}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.manageModal, { backgroundColor: theme.card }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Edit Routine</Text>
+              <Text style={{color: theme.subText, marginBottom: 20, textAlign: 'center', fontSize: 16, fontWeight: 'bold'}}>
+                {selectedSchedule.title}
+              </Text>
+
+              <Text style={[styles.inputLabel, { color: theme.text, marginBottom: 10 }]}>Change Color</Text>
+              
+              <View style={{ marginBottom: 25 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  {ROUTINE_COLORS.map(color => (
+                    <TouchableOpacity
+                      key={color}
+                      onPress={() => setEditColor(color)}
+                      style={[{ width: 40, height: 40, borderRadius: 20, marginRight: 12, justifyContent: 'center', alignItems: 'center' }, { backgroundColor: color }]}
+                    >
+                      {editColor === color && <Ionicons name="checkmark" size={20} color="#fff" />}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <TouchableOpacity style={styles.saveBtn} onPress={() => {
+                  if (updateSchedule) updateSchedule(selectedSchedule.id, editColor);
+                  setScheduleModalVisible(false);
+              }}>
+                <Text style={{color: 'white', fontWeight: 'bold'}}>Save Color</Text>
+              </TouchableOpacity>
+
+              <View style={{height: 1, backgroundColor: theme.border, marginVertical: 15}} />
+
+              <TouchableOpacity style={styles.deleteBtn} onPress={() => {
+                Alert.alert("Delete Schedule", `Remove "${selectedSchedule.title}"?`, [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Delete", style: "destructive", onPress: () => {
+                      deleteSchedule(selectedSchedule.id);
+                      setScheduleModalVisible(false);
+                  }}
+                ]);
+              }}>
+                <Ionicons name="trash-outline" size={20} color="white" style={{ marginRight: 5 }} />
+                <Text style={{color: 'white', fontWeight: 'bold'}}>Delete Routine</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setScheduleModalVisible(false)}>
+                <Text style={{color: theme.subText, fontWeight: 'bold'}}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
       <FlatList
         data={schedules}
         keyExtractor={item => item.id || Math.random().toString()}
         contentContainerStyle={{ padding: 15 }}
         renderItem={({ item }) => (
-          <View style={[styles.card, { borderLeftColor: item.color, backgroundColor: theme.card }]}>
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            onPress={() => handleCardPress(item)}
+            style={[styles.card, { borderLeftColor: item.color, backgroundColor: theme.card }]}
+          >
             {/* profile avatar */}
             <Image source={{ uri: item.avatar }} style={styles.cardAvatar} />
             
@@ -62,11 +131,11 @@ export default function ListView({ schedules, deleteSchedule, groups, activeGrou
               <Text style={[styles.time, { color: theme.subText }]}>{item.day} | {item.startTime} - {item.endTime}</Text>
             </View>
             
-            {/* trash icon color */}
-            <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn}>
-              <Ionicons name="trash-outline" size={20} color={item.owner === 'Me' ? "#ff4444" : theme.border} />
-            </TouchableOpacity>
-          </View>
+            {/* edit indicator icon instead of raw trash */}
+            <View style={styles.editIconWrapper}>
+              <Ionicons name="pencil" size={26} color={theme.border} />
+            </View>
+          </TouchableOpacity>
         )}
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -100,7 +169,16 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   title: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   time: { fontSize: 14, color: '#666', marginTop: 4 },
-  deleteBtn: { padding: 10 },
+  editIconWrapper: { padding: 10 },
   emptyState: { alignItems: 'center', marginTop: 50 },
-  emptyText: { marginTop: 10, color: '#999', fontSize: 16 }
+  emptyText: { marginTop: 10, color: '#999', fontSize: 16 },
+
+  /* Modal Styles Imported from Dashboard */
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+  manageModal: { width: '85%', padding: 25, borderRadius: 15, elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10 },
+  modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
+  inputLabel: { fontSize: 14, fontWeight: 'bold', marginBottom: 5 },
+  saveBtn: { backgroundColor: '#007bff', padding: 12, borderRadius: 8, alignItems: 'center' },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F44336', padding: 12, borderRadius: 8, marginBottom: 10 },
+  cancelBtn: { alignItems: 'center', padding: 10, marginTop: 5 },
 });
