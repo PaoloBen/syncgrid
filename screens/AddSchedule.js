@@ -114,8 +114,8 @@ export default function AddSchedule({ navigation, addSchedule }) {
       const base64Image = pickerResult.assets[0].base64;
       
       // 1. Setup the raw REST endpoint
-      const apiKey = "AIzaSyA_fMDQrXk3hN81SRN3O30y30tw86HVuVY";
-      
+      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+
       // We bump the endpoint to the live gemini-3.5-flash model
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
