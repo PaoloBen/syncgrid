@@ -39,3 +39,14 @@ SyncGrid is built on a decoupled, cross-platform mobile stack utilizing React Na
     npx expo start
 
 4. Scan the QR code using the Expo Go app on iOS or Android.
+
+
+## Environment Variables
+
+To run the AI Scanner locally, you need a valid Google Gemini API key.
+
+1. Create a `.env` file in the root directory of the project.
+2. Add your API key using the following format:
+   ```env
+   EXPO_PUBLIC_GEMINI_API_KEY=your_api_key_here
+   ```
