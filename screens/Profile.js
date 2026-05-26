@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../ThemeContext';
 import { signOut } from 'firebase/auth';
@@ -14,6 +14,9 @@ export default function Profile({ createCircle, joinCircle, navigation }) {
   const { isDarkMode, toggleTheme, theme } = useContext(ThemeContext);
   const [userData, setUserData] = useState({});
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+  const [isCreateModalVisible, setCreateModalVisible] = useState(false);
+  const [isJoinModalVisible, setJoinModalVisible] = useState(false);
+  const [circleInput, setCircleInput] = useState('');
 
   // Initialize the Google Auth Hook
   // Initialize the Google Auth Hook
@@ -89,28 +92,19 @@ export default function Profile({ createCircle, joinCircle, navigation }) {
     return unsubscribe;
   }, []);
 
-  const handleCreateCircle = () => {
-    Alert.prompt(
-      "New Circle",
-      "Enter a name for your new group:",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Create", onPress: (name) => { if (createCircle && name) createCircle(name); } }
-      ],
-      "plain-text"
-    );
+  const handleCreateCircle = () => setCreateModalVisible(true);
+  const handleJoinCircle = () => setJoinModalVisible(true);
+
+  const submitCreate = () => {
+    if (createCircle && circleInput) createCircle(circleInput);
+    setCreateModalVisible(false);
+    setCircleInput('');
   };
 
-  const handleJoinCircle = () => {
-    Alert.prompt(
-      "Join Circle",
-      "Enter the 6-digit invite code:",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Join", onPress: (code) => { if (joinCircle && code) joinCircle(code); } }
-      ],
-      "plain-text"
-    );
+  const submitJoin = () => {
+    if (joinCircle && circleInput) joinCircle(circleInput.toUpperCase());
+    setJoinModalVisible(false);
+    setCircleInput('');
   };
 
   return (
@@ -241,6 +235,57 @@ export default function Profile({ createCircle, joinCircle, navigation }) {
       >
         <Text style={[styles.logoutText, { color: isDarkMode ? '#ff4444' : '#d32f2f' }]}>Log Out</Text>
       </TouchableOpacity>
+      {/* --- ANDROID COMPATIBLE MODALS --- */}
+      <Modal visible={isCreateModalVisible} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>New Circle</Text>
+            <Text style={{ color: theme.subText, marginBottom: 15 }}>Enter a name for your new group:</Text>
+            <TextInput
+              style={[styles.modalInput, { color: theme.text, borderColor: theme.border }]}
+              placeholder="Circle Name"
+              placeholderTextColor={theme.subText}
+              value={circleInput}
+              onChangeText={setCircleInput}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => { setCreateModalVisible(false); setCircleInput(''); }} style={{ padding: 10 }}>
+                <Text style={{ color: theme.subText, fontSize: 16 }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={submitCreate} style={{ padding: 10 }}>
+                <Text style={{ color: '#00E676', fontSize: 16, fontWeight: 'bold' }}>Create</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={isJoinModalVisible} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Join Circle</Text>
+            <Text style={{ color: theme.subText, marginBottom: 15 }}>Enter the 6-digit invite code:</Text>
+            <TextInput
+              style={[styles.modalInput, { color: theme.text, borderColor: theme.border }]}
+              placeholder="e.g. A1B2C3"
+              placeholderTextColor={theme.subText}
+              value={circleInput}
+              onChangeText={setCircleInput}
+              autoCapitalize="characters"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => { setJoinModalVisible(false); setCircleInput(''); }} style={{ padding: 10 }}>
+                <Text style={{ color: theme.subText, fontSize: 16 }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={submitJoin} style={{ padding: 10 }}>
+                <Text style={{ color: '#2196F3', fontSize: 16, fontWeight: 'bold' }}>Join</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -259,5 +304,11 @@ const styles = StyleSheet.create({
   statusBadge: { backgroundColor: '#eee', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   statusText: { fontSize: 12, fontWeight: 'bold', color: '#555' },
   logoutBtn: { margin: 30, backgroundColor: '#ffebee', padding: 15, borderRadius: 10, alignItems: 'center' },
-  logoutText: { color: '#d32f2f', fontWeight: 'bold', fontSize: 16 }
+  logoutText: { color: '#d32f2f', fontWeight: 'bold', fontSize: 16 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: '80%', padding: 20, borderRadius: 10, elevation: 5 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
+  modalInput: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 16, marginBottom: 20 },
+  modalButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 15 },
 });
