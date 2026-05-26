@@ -45,6 +45,8 @@ SyncGrid is built on a decoupled, cross-platform mobile stack utilizing React Na
 
 To run the AI Scanner locally, you need a valid Google Gemini API key.
 
+Navigate through Google AI Studio to generate an API key https://aistudio.google.com/api-keys
+
 1. Create a `.env` file in the root directory of the project.
 2. Add your API key using the following format:
    ```env
